@@ -61,7 +61,6 @@ class RequestHandler(tornado.web.RequestHandler,  FlashMessageMixIn):
         """sqlalchemy connection close. 
         fixed sqlalchemy error: 'Can't reconnect until invalid'. new in version 2.2"""
         #db.session.remove()
-        print "on_finish"
         self.session.session_end()
 
     def get_current_user(self):

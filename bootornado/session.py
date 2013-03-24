@@ -18,8 +18,11 @@ except ImportError:
     sha1 = sha.new
 
 from tornado.options import options
+
 import tornado.web
 import bootornado.utils 
+
+import redis
 
 __all__ = [
     'Session', 'SessionExpired',
@@ -47,7 +50,7 @@ class Session(object):
     """Session management for web.py
     """
     __slots__ = [
-        "store", "_initializer", "_last_cleanup_time", "_config", "_data", 
+        "store", "_initializer", "_last_cleanup_time", "_config", "_data", "handler",
         "__getitem__", "__setitem__", "__delitem__"
     ]
 
@@ -81,6 +84,10 @@ class Session(object):
         
     def __delattr__(self, name):
         delattr(self._data, name)
+
+    def __getstate__(self):
+        odict = self.__dict__.copy() # copy the dict since we change it
+        return odict
 
     def session_start(self,handler):
         """Application processor to setup session for every handler"""
@@ -254,7 +261,6 @@ class DiskStore(Store):
 
     def __setitem__(self, key, value):
         path = self._get_path(key)
-        print value
         pickled = self.encode(value)    
         try:
             f = open(path, 'w')
@@ -354,6 +360,68 @@ class ShelfStore:
             atime, v = self.shelf[k]
             if now - atime > timeout :
                 del self[k]
+
+class RedisStore(Store):
+    """Store for saving a session in redis
+    Needs a table with the following columns:
+
+        session_id CHAR(128) UNIQUE NOT NULL,
+        atime DATETIME NOT NULL default current_timestamp,
+        data TEXT
+    """
+    def __init__(self):
+        redis_host   = options.get('redis_host','localhost')
+        redis_port   = options.get('redis_port','6379')
+        redis_db     = options.get('redis_db','')
+        redis_passwd = options.get('redis_passwd','')
+
+        redis_server = redis.StrictRedis(
+            host     = redis_host,
+            port     = redis_port,
+            db       = redis_db,
+            password = redis_passwd
+        )
+
+        self.server = redis_server
+    
+    def __contains__(self, key):
+        data = self.server.get(key)
+        return bool(list(data)) 
+
+    def __getitem__(self, key):
+        now = datetime.datetime.now()
+        try:
+            s = self.server.get(key)
+            self.server.setex(
+                key,
+                now,
+                data
+            )
+        except IndexError:
+            raise KeyError
+        else:
+            return self.decode(s.data)
+
+    def __setitem__(self, key, value):
+        pickled = self.encode(value)
+        now = datetime.datetime.now()
+
+        self.server.setex(
+            key,
+            now,
+            pickled
+        )
+                
+    def __delitem__(self, key):
+        try:
+            self.server.delete(key)
+        except:
+            pass
+
+    def cleanup(self, timeout):
+        timeout = datetime.timedelta(timeout/(24.0*60*60)) #timedelta takes numdays as arg
+        last_allowed_time = datetime.datetime.now() - timeout
+        self.db.delete(self.table, where="$last_allowed_time > atime", vars=locals())
 
 if __name__ == '__main__' :
     import doctest
