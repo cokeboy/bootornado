@@ -14,6 +14,7 @@ from pygments import highlight
 from pygments.lexers import get_lexer_for_filename
 from pygments.formatters import HtmlFormatter
 
+
 class FlashMessageMixIn(object):
     """
         Store a message between requests which the user needs to see.
@@ -57,6 +58,8 @@ class RequestHandler(tornado.web.RequestHandler,  FlashMessageMixIn):
     def prepare(self):
         self.session.session_start(self)
 
+    def session_end(self):
+        self.session.session_end()  
     def on_finish(self):
         """sqlalchemy connection close. 
         fixed sqlalchemy error: 'Can't reconnect until invalid'. new in version 2.2"""

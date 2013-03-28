@@ -13,6 +13,7 @@ from tornado_utils.routes import route
 
 from bootornado.views.base import RequestHandler
 
+
 @route(r'/', name='index')
 class Index(RequestHandler):
     def get(self):
@@ -27,6 +28,8 @@ class Index(RequestHandler):
         else:
         	user_id = "xxxxx"
         self.session["user_id"] = user_id
+
+        self.session_end()
         self.render("index.html", 
                     page_obj = page_obj,
                     page_url = page_url)

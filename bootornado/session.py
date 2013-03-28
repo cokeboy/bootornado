@@ -22,7 +22,10 @@ from tornado.options import options
 import tornado.web
 import bootornado.utils 
 
+import logging
+
 import redis
+import pdb 
 
 __all__ = [
     'Session', 'SessionExpired',
@@ -80,6 +83,7 @@ class Session(object):
         if name in self.__slots__:
             object.__setattr__(self, name, value)
         else:
+            logging.error('name : %s ,value : %s' %(name,value))
             setattr(self._data, name, value)
         
     def __delattr__(self, name):
@@ -99,11 +103,11 @@ class Session(object):
         self._save()
     def _load(self):
         """Load the session from the store, by the id from cookie"""
-        cookie_name = self._config.cookie_name
-        cookie_domain = self._config.cookie_domain
-        cookie_path = self._config.cookie_path
-        httponly = self._config.httponly
-        self.session_id = self.handler.request.cookies.get(cookie_name)
+        cookie_name     = self._config.cookie_name
+        cookie_domain   = self._config.cookie_domain
+        cookie_path     = self._config.cookie_path
+        httponly        = self._config.httponly
+        self.session_id = self.handler.get_cookie(cookie_name)
 
         # protection against session_id tampering
         if self.session_id and not self._valid_session_id(self.session_id):
@@ -112,10 +116,13 @@ class Session(object):
         self._check_expiry()
         if self.session_id:
             d = self.store[self.session_id]
+            logging.error(d)
             self.update(d)
             self._validate_ip()
         
         if not self.session_id:
+
+            self._data      = bootornado.utils.threadeddict()
             self.session_id = self._generate_session_id()
 
             if self._initializer:
@@ -143,17 +150,26 @@ class Session(object):
     def _save(self):
         if not self.get('_killed'):
             self._setcookie(self.session_id)
+            logging.error( dict(self._data) )
             self.store[self.session_id] = dict(self._data)
         else:
             self._setcookie(self.session_id, expires=-1)
             
     def _setcookie(self, session_id, expires='', **kw):
-        cookie_name = self._config.cookie_name
+        cookie_name   = self._config.cookie_name
         cookie_domain = self._config.cookie_domain
-        cookie_path = self._config.cookie_path
-        httponly = self._config.httponly
-        secure = self._config.secure
-        self.handler.set_cookie(cookie_name, session_id, expires=expires, domain=cookie_domain, httponly=httponly, secure=secure, path=cookie_path)
+        cookie_path   = self._config.cookie_path
+        httponly      = self._config.httponly
+        secure        = self._config.secure
+        self.handler.set_cookie(
+            cookie_name, 
+            session_id, 
+            expires  = expires, 
+            domain   = cookie_domain, 
+            httponly = httponly, 
+            # secure   = secure, 
+            path     = cookie_path
+        )
     
     def _generate_session_id(self):
         """Generate a random id for session"""
