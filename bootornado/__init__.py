@@ -18,20 +18,29 @@ from tornado_utils.routes import route
 import bootornado.session
 from bootornado import uimodules
 
-from bootornado.views.web import *
+import bootornado.views
 
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = route.get_routes()
 
         settings = dict(
-            title = "bootornado",
+            title         = "bootornado",
             template_path = os.path.join(os.path.dirname(__file__),"templates"),
-            static_path = os.path.join(os.path.dirname(__file__),"static"),
-            debug = True,
-            ui_modules = uimodules,
-            autoescape = None,
+            static_path   = os.path.join(os.path.dirname(__file__),"static"),
+            login_url     = '/auth/login',
+            debug         = True,
+            ui_modules    = uimodules,
+            autoescape    = None,
             cookie_secret = "bootornado"
         )
-        self.session = bootornado.session.Session(bootornado.session.DiskStore('sessions'), initializer={'count': 0})
+        settings['session'] = {
+            'engine': 'redis',
+            'storage': {
+                'host': 'localhost',
+                'port': 6379,
+                'db_sessions': 10,
+                'db_notifications': 11
+            }
+        }
         tornado.web.Application.__init__(self, handlers, **settings)

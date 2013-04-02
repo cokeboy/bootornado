@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #coding=utf-8
 """
-    views: blog.py
+    views: web.py
 """
 import simplejson
 import logging
@@ -11,12 +11,12 @@ import tornado.escape
 from datetime import datetime
 from tornado_utils.routes import route
 
-from bootornado.views.base import RequestHandler
+from bootornado.views.base import FrontAsynAuthHandler,FrontHandler
 
 
 @route(r'/', name='index')
-class Index(RequestHandler):
-    def get(self):
+class Index(FrontAsynAuthHandler):
+    def _get_(self):
         page_obj = []        
         page_url = None
         user_id  = None
@@ -33,4 +33,12 @@ class Index(RequestHandler):
         self.render("index.html", 
                     page_obj = page_obj,
                     page_url = page_url)
-        return
+@route(r'/auth/login',name='auto.login')
+class AuthLogin(FrontHandler):
+    def get(self):
+        page_obj = []        
+        page_url = None
+        self.render("index.html", 
+                    page_obj = page_obj,
+                    page_url = page_url)
+        
